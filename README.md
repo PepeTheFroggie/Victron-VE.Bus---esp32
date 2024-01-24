@@ -1,6 +1,8 @@
 # Victron-VE.Bus---esp32
 Victron Multiplus2 VE.Bus connected to Esp32
 
+This is "in progress" and i refuse any liability! DO NOT have the multiplus and the esp32 usb connected simultaneously! Program the esp32 alone, detach usb and only then connect to ve.bus. You also have to change the WiFi credentials and the shelly IP:
+
 This is derived from:
 https://github.com/pv-baxi/esp32ess
 
@@ -14,8 +16,6 @@ You will have to modify the RS485 converter according to PV-Baxi instructions. R
 The schematic for the original VE.Bus configuration ist this:
 ![schematic.jpg](schematic.jpg "schematic")
 Yes, Vin is not a good place to get power, but it works.
-
-This is "in progress" and i refuse any liability! DO NOT have the multiplus and the esp32 usb connected simultaneously! Program the esp32 alone, detach usb and only then connect to ve.bus. You also have to change the WiFi credentials and the shelly IP:
 
 --
 
