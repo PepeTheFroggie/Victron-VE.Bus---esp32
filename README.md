@@ -6,3 +6,5 @@ https://github.com/pv-baxi/esp32ess
 
 It implements net-zero with help of a shelly 3EM and a multiplus2 48/3000
 hardware is a esp32 + RS485 converter + 12V to 5V buck converter.
+
+![IMG_20230925_112643.jpg](IMG_20230925_112643.jpg "schematic")
