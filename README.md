@@ -21,7 +21,7 @@ This is "in progress" and i refuse any liability! DO NOT have the multiplus and 
 
 //Wifi password
 
-const char* SSID = "FSM";
+const char* SSID = "AFD";
 
 const char* PASSWORD = "0101010101";
 
