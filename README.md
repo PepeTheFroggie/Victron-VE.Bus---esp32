@@ -29,6 +29,7 @@ String Shelly_IP = "192.168.178.47";
 
 --
 
+The esp32 IP adress is dislayed on the serial console at startup.
 Uploads can be done with the "upload" button on the esp32 http page. The .bin file is created with arduino ide "Sketch" and "export compiled binary". The "auto" button will try to keep net-power at 25W consumption or -10W in case of PV excess. "charge only" will not generate power / not discharge your battery.
 
 Graph scale ist +1000W top, 0W middle, -1000W bottom. With shelly interval of 5 sec it records the last 40 min.
