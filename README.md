@@ -17,7 +17,7 @@ Yes, Vin is not a good place to get power, but it works.
 
 This is "in progress" and i refuse any liability! DO NOT have the multiplus and the esp32 usb connected simultaneously! Program the esp32 alone, detach usb and only then connect to ve.bus. You also have to change the WiFi credentials and the shelly IP:
 
-------------------------------------
+--
 
 //Wifi password
 
@@ -25,7 +25,10 @@ const char* SSID = "FSM";
 
 const char* PASSWORD = "0101010101";
 
-------------------------------------
+String Shelly_IP = "192.168.178.47";
+
+--
+
 
 Mine looks like this:
 ![IMG_20240121_022232.jpg](IMG_20240121_022232.jpg "gebastel")
