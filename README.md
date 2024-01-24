@@ -6,8 +6,7 @@ https://github.com/pv-baxi/esp32ess
 
 This is "in progress" and i refuse any liability! DO NOT have the multiplus and the esp32 usb connected simultaneously! Program the esp32 alone, detach usb and only then connect to ve.bus.
 
-It implements net-zero with help of a shelly 3EM and a multiplus2 48/3000
-hardware is a esp32 + RS485 converter + 12V to 5V buck converter.
+It implements net-zero with help of a shelly 3EM and a multiplus2 48/3000. Hardware is a esp32 + RS485 converter + 12V to 5V buck converter.
 
 Schematic:
 ![ESP32_VEBUS.png](ESP32_VEBUS.png "schematic")
