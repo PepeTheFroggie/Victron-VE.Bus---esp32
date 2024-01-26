@@ -35,6 +35,7 @@ Uploads can be done with the "upload" button on the esp32 http page. The .bin fi
 
 Graph scale ist +1000W top, 0W middle, -1000W bottom. With shelly interval of 5 sec it records the last 40 min.
 Red = net power from shelly 3EM, green = power generated or consumed by multiplus2, blue = power command sent to multiplus2.
+
 ![graph.svg](graph.svg "graph")
 
 Mine looks like this:
