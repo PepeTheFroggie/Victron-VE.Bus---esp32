@@ -51,6 +51,35 @@ void drawData()
   server.send(200, "text/html", out);
 }
 
+void getGraph() 
+{
+  String out;
+  char temp[100];
+  
+  out = "<html>\n";  
+  out += "<head>\n";
+  out += "<meta http-equiv='refresh' content='15'/>\n";
+  out += "</head>\n";
+    
+  out += "<body><center>\n";
+  out += "<h2>ESP32 Multiplus2 ESS</h2>\n";  
+  
+  out += "PowerMeter: "+String(meterPower)+" W &emsp;";
+  out += "ESSPower: "+String(essPower)+" W &emsp;";
+  out += "Bat Volt: "+String(BatVolt)+" V <br><br>";
+  
+  out += "<img src=\"/pic.svg\" />\n";
+  out += "</center></body>\n";
+  out += "</html>\n";
+  
+  server.send(200, "text/html", out);
+}
+
+void handleNotFound() 
+{
+  server.send(404, "text/plain", "Not Here");
+}
+
 void drawGraph() 
 {
   String out;
@@ -146,13 +175,13 @@ void shellyIP()
 
   out += "<form method=\"post\">\n";
   out += "KP&emsp;\n";
-  out += "<input type=\"number\" name=\"KP\" value=\"";
+  out += "<input type=\"number\" step=\"0.01\" name=\"KP\" value=\"";
   out += Kp;
   out += "\">\n";
 
   out += "<input type=\"submit\"><br>\n";
   out += "</form>\n";
-  
+
   sprintf(temp,"BSSID: %02X %02X %02X %02X %02X %02X <br><br>\n",bssid[0],bssid[1],bssid[2],bssid[3],bssid[4],bssid[5]); 
   out += temp;
 
@@ -160,6 +189,8 @@ void shellyIP()
   out += "</center></html>";
   server.send(200, "text/html", out);
 }
+
+bool param;
 
 void handleRoot() 
 {
@@ -172,13 +203,19 @@ void handleRoot()
     else if (server.argName(i) == "auto") autozero = true;
     else if (server.argName(i) == "manu"){autozero = false; reqPower = 0;}
     else if (server.argName(i) == "cho")  chgonly = !chgonly;
+    else if (server.argName(i) == "ON")  wakeup  = true;
+    else if (server.argName(i) == "OFF") gosleep = true;
+    param = true;
   }
   
-  out =  "<html>\n";  
-  out += "<head>\n";
-  out += "<meta http-equiv='refresh' content='10'/>\n";
-  out += "</head>\n";
-
+  out =  "<html>\n";
+  if (param)
+  {
+    param = false;
+    out += "<head>\n";
+    out += "<meta http-equiv='refresh' content='1; url=/'/>\n";
+    out += "</head>\n";
+  }
   out += "<body><center>\n";
   out += "<p><b>ESP32 Multiplus ESS</b></p>";
   out += "<a href=\"/up\">Upload</a>&emsp;\n";
@@ -190,9 +227,12 @@ void handleRoot()
   out += "PowerMeter: "+String(meterPower)+" W &emsp;";
   out += "ESSPower: "+String(essPower)+" W<br><br>";
 
-  out += "Bat Volt: "+String(0.01*float(BatVolt))+" V&emsp;";
-  out += "Bat Amp: "+String(0.1*float(BatAmp))+" A&emsp;";
+  out += "Bat Volt: "+String(BatVolt)+" V&emsp;";
+  out += "Bat Amp: "+String(BatAmp)+" A&emsp;";
   out += "AC Power: "+String(ACPower)+" W<br><br>";
+  
+  out += "Temp: "+String(multiplusTemp)+" C&emsp;";
+  out += "Dc current: "+String(multiplusDcCurrent)+" A<br><br>";
 
   if (nosync) out += "No Sync to Multiplus2<br><br>";
   
@@ -217,6 +257,12 @@ void handleRoot()
   else
     out += "<button onclick=\"window.location.href='/?cho=\';\">Charge only</button>\n";
   out += "<br><br>\n";
+  
+  out += "<button onclick=\"window.location.href='/?ON=\';\">Wakeup</button>\n";
+  out += "&emsp;\n";
+  out += "<button onclick=\"window.location.href='/?OFF=\';\">Sleep</button>\n";
+  out += "<br><br>\n";
+
 
   for (int i=0;i<rxnum;i++) 
   {
@@ -224,15 +270,14 @@ void handleRoot()
     out += temp;
   }
   out += "<br><br>";
-/*
+
   for (int i=0;i<extframelen;i++) 
   {
     sprintf(temp,"%02x ",extframe[i]);
     out += temp;
   }
   out += "<br>";
-*/  
-
+  
   out += "</center></html>";
   server.send(200, "text/html", out);
 }
