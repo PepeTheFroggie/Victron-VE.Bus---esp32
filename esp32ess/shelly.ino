@@ -1,12 +1,11 @@
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 
-int http_getpwr(String getstr)
+bool http_getpwr(String getstr, int * power)
 {
   StaticJsonDocument<2000> doc;
   WiFiClient client;
   HTTPClient http;
-  int pwr = 12345;
 
   if (http.begin(client, getstr)) 
   {  
@@ -23,12 +22,16 @@ int http_getpwr(String getstr)
           Serial.print(F("deserializeJson() failed: "));
           Serial.println(error.f_str());
         }
-        else pwr = doc["total_power"];
+        else 
+        {
+          *power = doc["total_power"];
+          return true;
+        }
       }
     } 
     else Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
     http.end();
   } 
   else Serial.printf("[HTTP} Unable to connect\n"); 
-  return pwr;
+  return false;
 }

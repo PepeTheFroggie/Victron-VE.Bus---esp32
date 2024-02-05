@@ -30,12 +30,6 @@ unsigned long getdatatime; // multiplus getpower
 unsigned long LoopInterval = 5000;
 int meterPower = 0;        // result of newest power measurement
 int reqPower = 0;          // requested power to multiplus
-float expectedPower = 0.0; // expected power of multiplus
-
-// PID factor
-float Kp = 0.94;
-float Kd = 0.0;
-float Ki = 0.0;
 
 #define txdelay 8          // delay from sync to tx
 #define i_maxpower  1000   // max power for inverter  
@@ -80,13 +74,23 @@ void setup()
 //---------------------------------------
 
 extern int16_t ACPower;
+int shellyfail;
+bool batlow,bathi;
+extern float BatVolt;
 
-float fact = 0.02;
-float invfact = 1.0 - fact;
+float filtPower;
+int expectedPower = 0; // expected power of multiplus
+
+bool DoInv,DoChg;
+int InvHi = 100;
+int InvLo =  50;
+int ChgHi = -20;
+int ChgLo = -80;
+int TargetHi =  50;
+int TargetLo = -25;
 
 void VEBuscode(void * parameter) 
 {
-  int targetWatt;
   int totalWatt;
     
   Serial.print("Comm core ID: ");
@@ -101,57 +105,75 @@ void VEBuscode(void * parameter)
 
       if (WiFi.status() == WL_CONNECTED) 
       {
-        meterPower = http_getpwr("http://" + Shelly_IP + "/status");
-        if (meterPower == 12345) meterPower = 0;
-        Serial.print("Shelly Power "); Serial.println(meterPower);
+        bool isok;
+        isok = http_getpwr("http://" + Shelly_IP + "/status", &meterPower);
+        if (!isok) 
+        { 
+          meterPower /= 2; 
+          shellyfail++; 
+        }
+        Serial.print("Shelly Power " + String(meterPower));
       }
       else meterPower = 0;
 
-      // meterPower positive = net consumption
-      // essPower positive = invert
-      // essPower negative = charge
-    
+      // meterPower from shelly, positive = net consumption
+      // essPower positive = invert, negative = charge
+      // ACPower is actual power measurement from mp2
+      // reqPower is power request sent to MP2
+            
       if (autozero)
       {       
-        //totalWatt = Kp * (meterPower + reqPower); // barebones
-        //gotMP2data = false; //if comm not reliable
         if (gotMP2data)
         {
-          gotMP2data = false;
-          totalWatt = Kp * (meterPower - ACPower);
+          gotMP2data = false;          
+          expectedPower = - ACPower; // invert
+          batlow = (BatVolt <= 51.0);
+          bathi  = (BatVolt >= 58.0);
         }
         else
-        {
-          //ACPower = 0;
-          totalWatt = Kp * (meterPower + int(expectedPower));
-        }
+          expectedPower = 0.9*reqPower;
+        
+        totalWatt = meterPower + expectedPower;
+        
+        // do target band with hysteresis
+        if      (totalWatt > InvHi) DoInv = true;
+        else if (totalWatt < InvLo) DoInv = false;
+        if      (totalWatt > ChgLo) DoChg = false;
+        else if (totalWatt < ChgHi) DoChg = true;
+        
+        // check conditions
+        if (chgonly) DoInv = false;
+        if (batlow)  DoInv = false;
+        if (bathi)   DoChg = false;
+        
+        if (totalWatt > 0) // inverting
+          reqPower = totalWatt - TargetHi; 
+        else               // charging      
+          reqPower = totalWatt - TargetLo; 
 
-        if (totalWatt > 0) targetWatt =  25; // inverting
-        else               targetWatt = -10; // charging
+        if (((meterPower < -50) && (expectedPower >  50)) ||
+            ((meterPower >  50) && (expectedPower < -50))) 
+          filtPower = 0.9 * float(reqPower); // fast adjustment
+        else 
+          filtPower = 0.5 * (filtPower + float(reqPower));
+
+        reqPower = int(filtPower);
       
-        reqPower = totalWatt - targetWatt; 
-      
-        // invert, positive values
-        if (reqPower > 50) 
-        {
-          if (reqPower > i_maxpower) reqPower = i_maxpower;
-          if (chgonly) reqPower = 0;
-        }
+        // invert, positive values         
+        if      (DoInv) reqPower = constrain(reqPower,0,i_maxpower);
         // charge, negative values
-        else if (reqPower < -25)
-        {
-          if (reqPower < c_maxpower) reqPower = c_maxpower;
-        }
-        else reqPower = 0; // do zero      
+        else if (DoChg) reqPower = constrain(reqPower,c_maxpower,0);
+        // do nothing
+        else  reqPower = 0; // do zero    
+           
         syncrxed = false;
       }
-         
+      
       essPower = short(reqPower);
       gotmsg = true; // make sure no timeout
 
-      //storewp(meterPower,reqPower,ACPower); // barebones
-      expectedPower = fact*expectedPower + invfact*reqPower; //5s
-      storewp(meterPower,int(expectedPower),ACPower);
+      //storewp(meterPower,ACPower,reqPower); // red, blue, green
+      storewp(meterPower,totalWatt,reqPower);      
     }  
     if (millis() > getdatatime)
     {

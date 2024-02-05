@@ -148,14 +148,21 @@ void shellyIP()
   char temp[100];
   for (uint8_t i = 0; i < server.args(); i++)
   {
-    if      (server.argName(i) == "sip") Shelly_IP = server.arg(i);   
+    if      (server.argName(i) == "sip")   Shelly_IP = server.arg(i);   
     else if (server.argName(i) == "ShelT") LoopInterval = 1000UL * constrain(server.arg(i).toInt(),1,60);
-    else if (server.argName(i) == "KP") Kp = constrain(server.arg(i).toFloat(),0.0,1.0);
-    else if (server.argName(i) == "KD") Kd = constrain(server.arg(i).toFloat(),0.0,1.0);
-    else if (server.argName(i) == "KI") Ki = constrain(server.arg(i).toFloat(),0.0,1.0);
+    else if (server.argName(i) == "InvHi") InvHi = server.arg(i).toInt();
+    else if (server.argName(i) == "InvLo") InvLo = server.arg(i).toInt();
+    else if (server.argName(i) == "ChgHi") ChgHi = server.arg(i).toInt();
+    else if (server.argName(i) == "ChgLo") ChgLo = server.arg(i).toInt();
+    else if (server.argName(i) == "TargetHi") TargetHi = server.arg(i).toInt();
+    else if (server.argName(i) == "TargetLo") TargetLo = server.arg(i).toInt();
   }
    
   out += "<html><br><br><center>\n";
+
+  if (shellyfail > 0) out += "Shelly fail: "+String(shellyfail)+"<br><br>"; 
+  sprintf(temp,"Connected to BSSID: %02X %02X %02X %02X %02X %02X <br><br>\n",bssid[0],bssid[1],bssid[2],bssid[3],bssid[4],bssid[5]); 
+  out += temp;
 
   out += "<form method=\"post\">\n";
   out += "Shelly IP &emsp;\n";
@@ -169,21 +176,43 @@ void shellyIP()
   out += "Shelly timing&emsp;\n";
   out += "<input type=\"number\" name=\"ShelT\" value=\"";
   out += LoopInterval/1000;
+  out += "\">\n";  
+  out += "<input type=\"submit\"><br>\n";
+  out += "</form>\n";
+
+  out += "<form method=\"post\">\n";
+  out += "Inverter hysteresis band&emsp;\n";
+  out += "<input type=\"number\" step=\"10\" name=\"InvHi\" value=\"";
+  out += InvHi;
+  out += "\">\n";
+  out += "<input type=\"number\" step=\"10\" name=\"InvLo\" value=\"";
+  out += InvLo;
   out += "\">\n";
   out += "<input type=\"submit\"><br>\n";
   out += "</form>\n";
 
   out += "<form method=\"post\">\n";
-  out += "KP&emsp;\n";
-  out += "<input type=\"number\" step=\"0.01\" name=\"KP\" value=\"";
-  out += Kp;
+  out += "Charger hysteresis band&emsp;\n";
+  out += "<input type=\"number\" step=\"10\" name=\"ChgHi\" value=\"";
+  out += ChgHi;
   out += "\">\n";
-
+  out += "<input type=\"number\" step=\"10\" name=\"ChgLo\" value=\"";
+  out += ChgLo;
+  out += "\">\n";
   out += "<input type=\"submit\"><br>\n";
   out += "</form>\n";
 
-  sprintf(temp,"BSSID: %02X %02X %02X %02X %02X %02X <br><br>\n",bssid[0],bssid[1],bssid[2],bssid[3],bssid[4],bssid[5]); 
-  out += temp;
+  out += "<form method=\"post\">\n";
+  out += "Target Power Invert&emsp;\n";
+  out += "<input type=\"number\" name=\"TargetHi\" value=\"";
+  out += TargetHi;
+  out += "\">\n";
+  out += "&emsp;Charge&emsp;\n";
+  out += "<input type=\"number\" name=\"TargetLo\" value=\"";
+  out += TargetLo;
+  out += "\">\n";
+  out += "<input type=\"submit\"><br>\n";
+  out += "</form>\n";
 
   out += "<a href=\"/\">Back</a>\n";
   out += "</center></html>";
@@ -228,11 +257,12 @@ void handleRoot()
   out += "ESSPower: "+String(essPower)+" W<br><br>";
 
   out += "Bat Volt: "+String(BatVolt)+" V&emsp;";
-  out += "Bat Amp: "+String(BatAmp)+" A&emsp;";
+  out += "Bat Amp: "+String(multiplusDcCurrent)+" A&emsp;";
   out += "AC Power: "+String(ACPower)+" W<br><br>";
+  if (batlow) out += "Bat Low Alarm !<br><br>";
+  if (bathi) out += "Bat High Alarm !<br><br>";
   
-  out += "Temp: "+String(multiplusTemp)+" C&emsp;";
-  out += "Dc current: "+String(multiplusDcCurrent)+" A<br><br>";
+  //out += "Temp: "+String(multiplusTemp)+" C&emsp;";
 
   if (nosync) out += "No Sync to Multiplus2<br><br>";
   

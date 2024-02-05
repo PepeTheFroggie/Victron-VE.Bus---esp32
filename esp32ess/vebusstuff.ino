@@ -1,3 +1,17 @@
+
+//Hardware
+const int VEBUS_RXD1=16, VEBUS_TXD1=17, VEBUS_DE=4;  //Victron Multiplus VE.bus RS485 gpio pins
+
+//other variables:
+char frbuf1[128];    //assembles one complete frame received by Multiplus
+char frbuf2[128];    //assembles one complete frame received by Multiplus
+char txbuf1[32];     //buffer for assembling bare command towards Multiplus (without replacements or checksum)
+char txbuf2[32];     //Multiplus output buffer containing the final command towards Multiplus, including replacements and checksum
+byte rxnum;                    
+byte frp = 0;        //Pointer into Multiplus framebuffer frbuf[] to store received frames.
+byte frlen = 0;      //Pointer into Multiplus framebuffer
+byte frameNr = 0;    //Last frame number received from Multiplus. Own command has be be sent with frameNr+1, otherwise it will be ignored by Multiplus.
+
 // mp2 variables
 byte    masterMultiLED_LEDon;              //Bits 0..7 = mains on, absorption, bulk, float, inverter on, overload, low battery, temperature
 byte    masterMultiLED_LEDblink;           //(LEDon=1 && LEDblink=1) = blinking; (LEDon=0 && LEDblink=1) = blinking_inverted 
@@ -13,21 +27,8 @@ int16_t multiplusAh;
 byte    multiplusStatus80;                 //status from the charger/inverter frame 0x80: 0=ok, 2=battery low
 bool    multiplusDcLevelAllowsInverting;
 
-float BatVolt,BatAmp;
+float BatVolt;
 int16_t ACPower;
-
-//Other
-const int VEBUS_RXD1=16, VEBUS_TXD1=17, VEBUS_DE=4;  //Victron Multiplus VE.bus RS485 gpio pins
-
-//other variables:
-char frbuf1[128];    //assembles one complete frame received by Multiplus
-char frbuf2[128];    //assembles one complete frame received by Multiplus
-char txbuf1[32];     //buffer for assembling bare command towards Multiplus (without replacements or checksum)
-char txbuf2[32];     //Multiplus output buffer containing the final command towards Multiplus, including replacements and checksum
-byte rxnum;                    
-byte frp = 0;        //Pointer into Multiplus framebuffer frbuf[] to store received frames.
-byte frlen = 0;      //Pointer into Multiplus framebuffer
-byte frameNr = 0;    //Last frame number received from Multiplus. Own command has be be sent with frameNr+1, otherwise it will be ignored by Multiplus.
 
 void init_vebus()
 {
@@ -66,7 +67,6 @@ int preparecmd(char *outbuf, byte desiredFrameNr)
   outbuf[j++] = 0xe6;           //our own ID
   outbuf[j++] = 0x30;           //Command read ram
   outbuf[j++] = 0x04;           //4-bat volt
-  outbuf[j++] = 0x05;           //5-bat amps
   outbuf[j++] = 0x0E;           //14-AC Power
   return j;  
 }
@@ -97,9 +97,13 @@ int destuffFAtoFF(char *outbuf, char *inbuf, int inlength)
     byte c = inbuf[i];
     if (c == 0xFA)
     {
-      i++;
-      c = inbuf[i];
-      outbuf[j++] = c + 0x80;
+      c = inbuf[++i];
+      if (c == 0xFF)    //if 0xFA is the checksum, leave the FA and following FF (end of frame) in as it was.
+      { 
+        outbuf[j++] = 0xFA;
+        outbuf[j++] = c;
+      }
+      else outbuf[j++] = c + 0x80;
     }
     else outbuf[j++] = c;    //no replacement
   }  
@@ -126,6 +130,13 @@ int commandReplaceFAtoFF(char *outbuf, char *inbuf, int inlength)
   return j;   //new length of output frame
 }
 
+bool verifyChecksum(char *inbuf, int inlength)
+{
+  byte cs = 0;
+  for (int i = 2; i < inlength; i++) cs += inbuf[i];  //sum over all bytes excluding the first two (address)
+  if (cs == 0) return true; else return false;
+}
+
 int appendChecksum(char *buf, int inlength)
 {
   int j=0;
@@ -136,7 +147,7 @@ int appendChecksum(char *buf, int inlength)
     cs -= buf[i];
   }
   j = inlength;
-  if (cs >= 0xFA)
+  if (cs >= 0xFB)   //EXCEPTION: Only replace starting from 0xFB
   {
     buf[j++] = 0xFA;
     buf[j++] = (cs-0xFA);
@@ -191,8 +202,8 @@ void decodeVEbusFrame(char *frame, int len)
   }
   else if (frame[4] == 0x70) // 70 = DC capacity counter)
   {
-    for (int i=0;i<len;i++) extframe[i] = frame[i];
-    extframelen = len;      
+    // 83 83 fe 23 70  81 44 16 5e 01 c2 00 00  74 ff
+    // 83 83 fe 20 70  81 44 16 5e 01 c2 00 00  77 ff
   }
   else if (frame[4] == 0x41) // 41 = Multiplus mode / master led
   {
@@ -214,6 +225,8 @@ void decodeVEbusFrame(char *frame, int len)
   else if (frame[4] == 0x38) // ?
   {
     // 83 83 fe 05 38 01 c0 c0 45 ff   
+    for (int i=0;i<len;i++) extframe[i] = frame[i];
+    extframelen = len;      
   }
   else if (frame[4] == 0x00) // ack or response
   {
@@ -225,9 +238,7 @@ void decodeVEbusFrame(char *frame, int len)
         gotMP2data = true;
         int16_t v = 256*frame[8]  + frame[7];
         BatVolt = 0.01*float(v);
-        int16_t a = 256*frame[10] + frame[9];
-        BatAmp  = 0.1*float(a);
-        ACPower = 256*frame[12] + frame[11];
+        ACPower = 256*frame[10] + frame[9];
       }
       else
       {
