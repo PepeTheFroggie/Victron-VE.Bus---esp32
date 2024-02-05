@@ -88,6 +88,8 @@ int ChgHi = -20;
 int ChgLo = -80;
 int TargetHi =  50;
 int TargetLo = -25;
+float LoBat = 51.0;
+float HiBat = 56.0;
 
 void VEBuscode(void * parameter) 
 {
@@ -127,29 +129,28 @@ void VEBuscode(void * parameter)
         {
           gotMP2data = false;          
           expectedPower = - ACPower; // invert
-          batlow = (BatVolt <= 51.0);
-          bathi  = (BatVolt >= 58.0);
+          batlow = (BatVolt < LoBat);
+          bathi  = (BatVolt > HiBat);
         }
-        else
-          expectedPower = 0.9*reqPower;
+        else expectedPower = 0.9*reqPower;
         
         totalWatt = meterPower + expectedPower;
         
         // do target band with hysteresis
-        if      (totalWatt > InvHi) DoInv = true;
-        else if (totalWatt < InvLo) DoInv = false;
-        if      (totalWatt > ChgLo) DoChg = false;
-        else if (totalWatt < ChgHi) DoChg = true;
+        if      (totalWatt > InvHi) DoInv = true;  // 100
+        else if (totalWatt < InvLo) DoInv = false; //  50
+        if      (totalWatt > ChgHi) DoChg = false; // -20
+        else if (totalWatt < ChgLo) DoChg = true;  // -80
         
         // check conditions
         if (chgonly) DoInv = false;
         if (batlow)  DoInv = false;
         if (bathi)   DoChg = false;
-        
-        if (totalWatt > 0) // inverting
-          reqPower = totalWatt - TargetHi; 
-        else               // charging      
-          reqPower = totalWatt - TargetLo; 
+
+        // inverting
+        if (totalWatt > 0) reqPower = totalWatt - TargetHi; 
+        // charging 
+        else               reqPower = totalWatt - TargetLo; 
 
         if (((meterPower < -50) && (expectedPower >  50)) ||
             ((meterPower >  50) && (expectedPower < -50))) 

@@ -156,12 +156,14 @@ void shellyIP()
     else if (server.argName(i) == "ChgLo") ChgLo = server.arg(i).toInt();
     else if (server.argName(i) == "TargetHi") TargetHi = server.arg(i).toInt();
     else if (server.argName(i) == "TargetLo") TargetLo = server.arg(i).toInt();
+    else if (server.argName(i) == "LoBat") LoBat = server.arg(i).toFloat();
+    else if (server.argName(i) == "HiBat") HiBat = server.arg(i).toFloat();
   }
    
   out += "<html><br><br><center>\n";
 
   if (shellyfail > 0) out += "Shelly fail: "+String(shellyfail)+"<br><br>"; 
-  sprintf(temp,"Connected to BSSID: %02X %02X %02X %02X %02X %02X <br><br>\n",bssid[0],bssid[1],bssid[2],bssid[3],bssid[4],bssid[5]); 
+  sprintf(temp,"Connected to BSSID &emsp; %02X %02X %02X %02X %02X %02X <br><br>\n",bssid[0],bssid[1],bssid[2],bssid[3],bssid[4],bssid[5]); 
   out += temp;
 
   out += "<form method=\"post\">\n";
@@ -203,13 +205,25 @@ void shellyIP()
   out += "</form>\n";
 
   out += "<form method=\"post\">\n";
-  out += "Target Power Invert&emsp;\n";
+  out += "Target Power Invert \n";
   out += "<input type=\"number\" name=\"TargetHi\" value=\"";
   out += TargetHi;
   out += "\">\n";
-  out += "&emsp;Charge&emsp;\n";
+  out += "&emsp;Charge \n";
   out += "<input type=\"number\" name=\"TargetLo\" value=\"";
   out += TargetLo;
+  out += "\">\n";
+  out += "<input type=\"submit\"><br>\n";
+  out += "</form>\n";
+
+  out += "<form method=\"post\">\n";
+  out += "Low Bat \n";
+  out += "<input type=\"number\" step=\"0.01\" name=\"LoBat\" value=\"";
+  out += LoBat;
+  out += "\">\n";
+  out += "&emsp;Hi Bat \n";
+  out += "<input type=\"number\" step=\"0.01\" name=\"HiBat\" value=\"";
+  out += HiBat;
   out += "\">\n";
   out += "<input type=\"submit\"><br>\n";
   out += "</form>\n";
