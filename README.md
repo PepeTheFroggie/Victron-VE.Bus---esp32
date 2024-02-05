@@ -41,3 +41,8 @@ Red = net power from shelly 3EM, green = power generated or consumed by multiplu
 Mine looks like this:
 ![IMG_20240121_022232.jpg](IMG_20240121_022232.jpg "gebastel")
 
+New version 5.2.24: 
+- Sleep / Wakeup of the multiplus2. 
+- Low Bat and Hi Bat limits
+- configurable target watt
+- hysteresis band for charge and invert.
