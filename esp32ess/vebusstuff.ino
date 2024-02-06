@@ -180,7 +180,7 @@ void sendmsg(int msgtype)
   //write command into Multiplus :-)
 //digitalWrite(VEBUS_DE,HIGH);  //set RS485 direction to write
   Serial1.write(txbuf2, len); //write command bytes to UART
-  Serial1.flush(); //
+//Serial1.flush(); 
 //digitalWrite(VEBUS_DE,LOW);   //set RS485 direction to read
 }
 
