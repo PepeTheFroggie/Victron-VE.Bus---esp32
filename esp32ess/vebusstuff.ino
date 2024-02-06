@@ -1,6 +1,7 @@
+#include "driver/uart.h"
 
 //Hardware
-const int VEBUS_RXD1=16, VEBUS_TXD1=17, VEBUS_DE=4;  //Victron Multiplus VE.bus RS485 gpio pins
+const int VEBUS_RXD1=16, VEBUS_TXD1=17, VEBUS_DE1=4;  //Victron Multiplus VE.bus RS485 gpio pins
 
 //other variables:
 char frbuf1[128];    //assembles one complete frame received by Multiplus
@@ -32,11 +33,14 @@ int16_t ACPower;
 
 void init_vebus()
 {
-  pinMode(VEBUS_DE, OUTPUT);    //RS485 RE/DE direction pin for UART1
-  digitalWrite(VEBUS_DE,LOW);   //set RS485 direction to read
+  //pinMode(VEBUS_DE, OUTPUT);    //RS485 RE/DE direction pin for UART1
+  //digitalWrite(VEBUS_DE,LOW);   //set RS485 direction to read
 
   //Setup Serial port for VE.Bus RS485 to Multiplus
   Serial1.begin(256000, SERIAL_8N1, VEBUS_RXD1, VEBUS_TXD1);
+  // setup hardware RE/DE
+  Serial1.setPins(-1, -1, -1, VEBUS_DE1);       // new
+  Serial1.setMode(UART_MODE_RS485_HALF_DUPLEX); // new
 }
 
 int prepareESScommand(char *outbuf, short power, byte desiredFrameNr)
@@ -174,10 +178,10 @@ void sendmsg(int msgtype)
   len = commandReplaceFAtoFF(txbuf2, txbuf1, len);
   len = appendChecksum(txbuf2, len);
   //write command into Multiplus :-)
-  digitalWrite(VEBUS_DE,HIGH);      //set RS485 direction to write
+//digitalWrite(VEBUS_DE,HIGH);  //set RS485 direction to write
   Serial1.write(txbuf2, len); //write command bytes to UART
   Serial1.flush(); //
-  digitalWrite(VEBUS_DE,LOW);   //set RS485 direction to read
+//digitalWrite(VEBUS_DE,LOW);   //set RS485 direction to read
 }
 
 void decodeVEbusFrame(char *frame, int len)
