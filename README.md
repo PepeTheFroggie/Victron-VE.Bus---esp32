@@ -1,4 +1,4 @@
-# Shelly2vebus
+# Shelly2ve.bus
 Victron Multiplus2 VE.Bus connected to Esp32
 
 This is derived from:
