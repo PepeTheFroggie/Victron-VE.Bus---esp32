@@ -48,4 +48,4 @@ New version 5.2.24:
 - hysteresis band for charge and invert.
 
 New version 6.2.24: 
-- Switching RX485 RX/TX with UART hardware
+- Switching RS485 RX/TX with UART hardware
