@@ -3,6 +3,8 @@ Victron Multiplus2 VE.Bus connected to Esp32
 
 This is derived from:
 https://github.com/pv-baxi/esp32ess
+Another similar project:
+https://github.com/GitNik1/VEBus
 
 This is "in progress" and i refuse any liability! DO NOT have the multiplus and the esp32 usb connected simultaneously! Program the esp32 alone, detach usb and only then connect to ve.bus.
 
