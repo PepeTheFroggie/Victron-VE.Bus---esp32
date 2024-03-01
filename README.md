@@ -52,3 +52,7 @@ New version 5.2.24:
 
 New version 6.2.24: 
 - Switching RS485 RX/TX with UART hardware
+
+New version 1.3.24: 
+- Sleep, Wakeup, Autowakeup when PV excess
+- Estimated Bat Volt with 0.02 ohms internal and cable R
