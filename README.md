@@ -55,4 +55,4 @@ New version 6.2.24:
 
 New version 1.3.24: 
 - Sleep, Wakeup, Autowakeup when PV excess
-- Estimated Bat Volt with 0.02 ohms internal and cable R
+- Estimated Bat Volt assuming 0.03 ohms internal R
