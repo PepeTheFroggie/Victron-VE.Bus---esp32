@@ -1,22 +1,22 @@
-#define num_datasets 480
+#define num_datasets 600 // 600 * 5 sec
 
 struct wp
 {
-  int meterpow;
-  int esspow;
-  int mp2pow;
+  int red;
+  int blue;
+  int green;
   int8_t state;
 };
 
 wp wp_arr[num_datasets];
 uint16_t datasetpt = 0;
 
-void storewp(int meter, int ess, int mp2)
+void storewp(int red, int blue, int green)
 {
-  wp_arr[datasetpt].state = 1;
-  wp_arr[datasetpt].meterpow = meter;
-  wp_arr[datasetpt].esspow = ess;
-  wp_arr[datasetpt].mp2pow = mp2;
+  wp_arr[datasetpt].state  = 1;
+  wp_arr[datasetpt].red    = red;
+  wp_arr[datasetpt].blue   = blue;
+  wp_arr[datasetpt].green  = green;
   datasetpt++;
   if (datasetpt >= num_datasets) datasetpt = 0;
 }
@@ -26,30 +26,9 @@ void clearwp()
   for(int i=0;i<num_datasets;i++) wp_arr[i].state = -1;
 }
 
-#define fullH 240
-#define halfH 120
-#define Hfact 0.12  // 500W -> 120
-
-void drawData() 
-{
-  String out;
-  out.reserve(5000);
-  char temp[200];
-  for (int i=0;i<num_datasets;i++)
-  {
-    uint16_t pos = datasetpt + i;
-    if (pos >= num_datasets) pos -= num_datasets;
-    int powdata = wp_arr[pos].meterpow;
-    int essdata = wp_arr[pos].esspow;
-    int mp3data = wp_arr[pos].mp2pow;
-    if (wp_arr[pos].state >= 0)
-    {
-      sprintf(temp,"%4d, %4d, %4d<br>",powdata,essdata,mp3data);
-      out += temp;
-    }
-  }
-  server.send(200, "text/html", out);
-}
+#define fullH 300+110
+#define halfH 150+10
+#define Hfact 0.10  // 1500W -> 150
 
 void getGraph() 
 {
@@ -61,18 +40,34 @@ void getGraph()
   out += "<meta http-equiv='refresh' content='15'/>\n";
   out += "</head>\n";
     
-  out += "<body><center>\n";
-  out += "<h2>ESP32 Multiplus2 ESS</h2>\n";  
+  out += "<body><center><br>\n";
   
   out += "PowerMeter: "+String(meterPower)+" W &emsp;";
   out += "ESSPower: "+String(essPower)+" W &emsp;";
-  out += "Bat Volt: "+String(BatVolt)+" V <br><br>";
+  out += "Bat Volt: "+String(BatVolt)+" V <br>";
   
   out += "<img src=\"/pic.svg\" />\n";
   out += "</center></body>\n";
   out += "</html>\n";
   
   server.send(200, "text/html", out);
+}
+
+void onoff() 
+{
+  // "/cm?cmnd=Power%20on" "/cm?cmnd=Power%20off" 
+  for (uint8_t i = 0; i < server.args(); i++)
+  {
+    if (server.argName(i) == "cmnd") 
+    {
+      Serial.println(server.arg(i));
+      if      (server.arg(i) == "Power on")  wakeup = true;
+      else if (server.arg(i) == "Power off") gosleep = true;  
+    }
+  }
+  if      (wakeup)  server.send(200, "text", "Wakeup");
+  else if (gosleep) server.send(200, "text", "GoSleep");
+  else server.send(200, "text", "Unknown");
 }
 
 void handleNotFound() 
@@ -83,13 +78,17 @@ void handleNotFound()
 void drawGraph() 
 {
   String out;
-  out.reserve(5000);
+  out.reserve(6000);
   char temp[200];
 
-  out += "<svg viewBox=\"0 0 500 300\" xmlns=\"http://www.w3.org/2000/svg\">\n";
-  out += "<rect x=\"10\" y=\"0\" width=\"480\" height=\"240\" stroke=\"silver\" fill=\"none\"/>\n";
-  out += "<line x1=\"10\" y1=\"120\" x2=\"490\" y2=\"120\" stroke=\"black\"/>\n";
+  // num_datasets + 20 / fullH + 20
+  out += "<svg viewBox=\"0 0 620 320\" xmlns=\"http://www.w3.org/2000/svg\">\n";
+  out += "<rect x=\"10\" y=\"10\" width=\"600\" height=\"300\" stroke=\"silver\" fill=\"none\"/>\n";
+ 
+  out += "<line x1=\"10\" y1=\"160\" x2=\"610\" y2=\"160\" stroke=\"black\"/>\n";
 
+  //<text x="20" y="35" class="small">My</text>
+  
   // line graph red
   out += "<polyline points=\"";
   for (int i=0;i<num_datasets;i++)
@@ -97,7 +96,7 @@ void drawGraph()
     // datasetpt is now, show the past
     uint16_t pos = datasetpt + i;
     if (pos >= num_datasets) pos -= num_datasets;
-    int powdata = (float)wp_arr[pos].meterpow*Hfact;
+    int powdata = (float)wp_arr[pos].red*Hfact;
     if (wp_arr[pos].state >= 0)
     {
       sprintf(temp,"%d,%d ",10+i,halfH-powdata);
@@ -113,7 +112,7 @@ void drawGraph()
     // datasetpt is now, show the past
     uint16_t pos = datasetpt + i;
     if (pos >= num_datasets) pos -= num_datasets;
-    int powdata = (float)wp_arr[pos].esspow*Hfact;
+    int powdata = (float)wp_arr[pos].blue*Hfact;
     if (wp_arr[pos].state >= 0)
     {
       sprintf(temp,"%d,%d ",10+i,halfH-powdata);
@@ -129,7 +128,7 @@ void drawGraph()
     // datasetpt is now, show the past
     uint16_t pos = datasetpt + i;
     if (pos >= num_datasets) pos -= num_datasets;
-    int powdata = (float)wp_arr[pos].mp2pow*Hfact;
+    int powdata = (float)wp_arr[pos].green*Hfact;
     if (wp_arr[pos].state >= 0)
     {
       sprintf(temp,"%d,%d ",10+i,halfH-powdata);
@@ -137,8 +136,9 @@ void drawGraph()
     }
   }
   out += "\" fill=\"none\" stroke=\"green\"/>\n";
+
   out += "</svg>\n";
-  
+
   server.send(200, "image/svg+xml", out);
 }
 
@@ -149,7 +149,7 @@ void shellyIP()
   for (uint8_t i = 0; i < server.args(); i++)
   {
     if      (server.argName(i) == "sip")   Shelly_IP = server.arg(i);   
-    else if (server.argName(i) == "ShelT") LoopInterval = 1000UL * constrain(server.arg(i).toInt(),1,60);
+    else if (server.argName(i) == "ShelT") LoopInterval = 1000UL * constrain(server.arg(i).toInt(),1,59);
     else if (server.argName(i) == "InvHi") InvHi = server.arg(i).toInt();
     else if (server.argName(i) == "InvLo") InvLo = server.arg(i).toInt();
     else if (server.argName(i) == "ChgHi") ChgHi = server.arg(i).toInt();
@@ -176,7 +176,7 @@ void shellyIP()
 
   out += "<form method=\"post\">\n";
   out += "Shelly timing&emsp;\n";
-  out += "<input type=\"number\" name=\"ShelT\" value=\"";
+  out += "<input type=\"number\" name=\"ShelT\" style=\"width:3em\" value=\"";  
   out += LoopInterval/1000;
   out += "\">\n";  
   out += "<input type=\"submit\"><br>\n";
@@ -184,10 +184,10 @@ void shellyIP()
 
   out += "<form method=\"post\">\n";
   out += "Inverter hysteresis band&emsp;\n";
-  out += "<input type=\"number\" step=\"10\" name=\"InvHi\" value=\"";
+  out += "<input type=\"number\" step=\"5\" name=\"InvHi\" style=\"width:5em\" value=\"";
   out += InvHi;
   out += "\">\n";
-  out += "<input type=\"number\" step=\"10\" name=\"InvLo\" value=\"";
+  out += "<input type=\"number\" step=\"5\" name=\"InvLo\" style=\"width:5em\" value=\"";
   out += InvLo;
   out += "\">\n";
   out += "<input type=\"submit\"><br>\n";
@@ -195,10 +195,10 @@ void shellyIP()
 
   out += "<form method=\"post\">\n";
   out += "Charger hysteresis band&emsp;\n";
-  out += "<input type=\"number\" step=\"10\" name=\"ChgHi\" value=\"";
+  out += "<input type=\"number\" step=\"5\" name=\"ChgHi\" style=\"width:5em\" value=\"";
   out += ChgHi;
   out += "\">\n";
-  out += "<input type=\"number\" step=\"10\" name=\"ChgLo\" value=\"";
+  out += "<input type=\"number\" step=\"5\" name=\"ChgLo\" style=\"width:5em\" value=\"";
   out += ChgLo;
   out += "\">\n";
   out += "<input type=\"submit\"><br>\n";
@@ -206,11 +206,11 @@ void shellyIP()
 
   out += "<form method=\"post\">\n";
   out += "Target Power Invert \n";
-  out += "<input type=\"number\" name=\"TargetHi\" value=\"";
+  out += "<input type=\"number\" name=\"TargetHi\" style=\"width:5em\" value=\"";
   out += TargetHi;
   out += "\">\n";
   out += "&emsp;Charge \n";
-  out += "<input type=\"number\" name=\"TargetLo\" value=\"";
+  out += "<input type=\"number\" name=\"TargetLo\" style=\"width:5em\" value=\"";
   out += TargetLo;
   out += "\">\n";
   out += "<input type=\"submit\"><br>\n";
@@ -218,15 +218,17 @@ void shellyIP()
 
   out += "<form method=\"post\">\n";
   out += "Low Bat \n";
-  out += "<input type=\"number\" step=\"0.01\" name=\"LoBat\" value=\"";
+  out += "<input type=\"number\" step=\"0.01\" name=\"LoBat\" style=\"width:8em\" value=\"";
   out += LoBat;
   out += "\">\n";
   out += "&emsp;Hi Bat \n";
-  out += "<input type=\"number\" step=\"0.01\" name=\"HiBat\" value=\"";
+  out += "<input type=\"number\" step=\"0.01\" name=\"HiBat\" style=\"width:8em\" value=\"";
   out += HiBat;
   out += "\">\n";
   out += "<input type=\"submit\"><br>\n";
   out += "</form>\n";
+
+  out += "<button onclick=\"window.location.href='/?commit=\';\">Write to Flash</button><br><br>\n";
 
   out += "<a href=\"/\">Back</a>\n";
   out += "</center></html>";
@@ -243,11 +245,13 @@ void handleRoot()
   for (uint8_t i = 0; i < server.args(); i++)
   {
     if      (server.argName(i) == "ci")  {reqPower = server.arg(i).toInt(); gotmsg = true;}
-    else if (server.argName(i) == "auto") autozero = true;
-    else if (server.argName(i) == "manu"){autozero = false; reqPower = 0;}
+    else if (server.argName(i) == "auto"){autozero = true; reqPower=0;}
     else if (server.argName(i) == "cho")  chgonly = !chgonly;
-    else if (server.argName(i) == "ON")  wakeup  = true;
-    else if (server.argName(i) == "OFF") gosleep = true;
+    else if (server.argName(i) == "ON")   wakeup  = true;
+    else if (server.argName(i) == "OFF")  gosleep = true;
+    else if (server.argName(i) == "AON")  autowakeup = !autowakeup;
+    else if (server.argName(i) == "manu"){autozero=false; reqPower=0; batlow=false; bathi=false;}
+    else if (server.argName(i) == "commit") writeeprom();
     param = true;
   }
   
@@ -268,6 +272,8 @@ void handleRoot()
   out += "<a href=\"/\">Refresh</a><br><br>\n";
   
   out += "PowerMeter: "+String(meterPower)+" W &emsp;";
+  if (isSleeping) out += "IS SLEEPING&emsp;";
+  out += "EstBatVolt: "+String(estvolt)+" V&emsp;";
   out += "ESSPower: "+String(essPower)+" W<br><br>";
 
   out += "Bat Volt: "+String(BatVolt)+" V&emsp;";
@@ -279,18 +285,21 @@ void handleRoot()
   //out += "Temp: "+String(multiplusTemp)+" C&emsp;";
 
   if (nosync) out += "No Sync to Multiplus2<br><br>";
-  
-  out += "<button onclick=\"window.location.href='/?ci=-200\';\">charge 200</button>\n";
-  out += "&emsp;\n";
-  out += "<button onclick=\"window.location.href='/?ci=-1000\';\">charge 1000</button>\n";
-  out += "&emsp;\n";
-  out += "<button onclick=\"window.location.href='/?ci=0\';\">set 0</button>\n";
-  out += "&emsp;\n";
-  out += "<button onclick=\"window.location.href='/?ci=100\';\">invert 100</button>\n";
-  out += "&emsp;\n";
-  out += "<button onclick=\"window.location.href='/?ci=500\';\">invert 500</button>\n";
-  out += "<br><br>\n";
 
+  if (!autozero)
+  {
+    out += "<button onclick=\"window.location.href='/?ci=-200\';\">charge 200</button>\n";
+    out += "&emsp;\n";
+    out += "<button onclick=\"window.location.href='/?ci=-1000\';\">charge 1000</button>\n";
+    out += "&emsp;\n";
+    out += "<button onclick=\"window.location.href='/?ci=0\';\">set 0</button>\n";
+    out += "&emsp;\n";
+    out += "<button onclick=\"window.location.href='/?ci=100\';\">invert 100</button>\n";
+    out += "&emsp;\n";
+    out += "<button onclick=\"window.location.href='/?ci=500\';\">invert 500</button>\n";
+    out += "<br><br>\n";
+  }
+  
   if (autozero)
     out += "<button onclick=\"window.location.href='/?manu=\';\">Manual</button>\n";
   else
@@ -305,6 +314,11 @@ void handleRoot()
   out += "<button onclick=\"window.location.href='/?ON=\';\">Wakeup</button>\n";
   out += "&emsp;\n";
   out += "<button onclick=\"window.location.href='/?OFF=\';\">Sleep</button>\n";
+  out += "&emsp;\n";
+  if (autowakeup)
+    out += "<button onclick=\"window.location.href='/?AON=\';\">NoAutoWakeup</button>\n";
+  else
+    out += "<button onclick=\"window.location.href='/?AON=\';\">AutoWakeup</button>\n";
   out += "<br><br>\n";
 
 

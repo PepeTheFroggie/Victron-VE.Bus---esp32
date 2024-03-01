@@ -27,12 +27,13 @@ bool sendnow;              // send alt msg
 unsigned long synctime;    // tx timeslot
 unsigned long getpwrtime;  // shelly getpower
 unsigned long getdatatime; // multiplus getpower
-unsigned long LoopInterval = 5000;
+unsigned long LoopInterval  =  5000;
+unsigned long SleepInterval = 30000;
 int meterPower = 0;        // result of newest power measurement
 int reqPower = 0;          // requested power to multiplus
 
 #define txdelay 8          // delay from sync to tx
-#define i_maxpower  1000   // max power for inverter  
+#define i_maxpower  1500   // max power for inverter  
 #define c_maxpower -1750   // max power for charger. Must be negative
 
 char extframe[32];   
@@ -62,11 +63,15 @@ void setup()
   server.on("/pic.svg", drawGraph);
   server.on("/data", drawData);
   server.on("/shelly", shellyIP);
+  server.on("/cm", onoff);
   server.begin();
   Serial.println(" connected to WiFi");
   Serial.println(WiFi.localIP());
 
   clearwp();  
+
+  //if (initeeprom()) readeeprom();
+  
   // WiFi always core 1
   xTaskCreatePinnedToCore(VEBuscode, "VEBus", 10000, NULL, 0, &Task1, 0);
 }
@@ -77,19 +82,27 @@ extern int16_t ACPower;
 int shellyfail;
 bool batlow,bathi;
 extern float BatVolt;
+extern float multiplusDcCurrent;
+float estvolt;
 
 float filtPower;
 int expectedPower = 0; // expected power of multiplus
 
 bool DoInv,DoChg;
-int InvHi = 100;
-int InvLo =  50;
-int ChgHi = -20;
-int ChgLo = -80;
+int InvHi = 150;
+int InvLo = 100;
+int ChgHi = -10;
+int ChgLo = -50;
 int TargetHi =  50;
-int TargetLo = -25;
+int TargetLo = -10;
 float LoBat = 51.0;
 float HiBat = 56.0;
+
+bool gosleep;
+bool wakeup;
+bool isSleeping;
+bool autowakeup;
+int oldPower;
 
 void VEBuscode(void * parameter) 
 {
@@ -102,7 +115,8 @@ void VEBuscode(void * parameter)
   {
     if (millis() > getpwrtime)
     {
-      getpwrtime = millis() + LoopInterval;
+      if (isSleeping) getpwrtime = millis() + SleepInterval;
+      else            getpwrtime = millis() + LoopInterval;
       getdatatime = getpwrtime - 500;
 
       if (WiFi.status() == WL_CONNECTED) 
@@ -118,6 +132,16 @@ void VEBuscode(void * parameter)
       }
       else meterPower = 0;
 
+      if (isSleeping && autowakeup)
+      {
+        if ((oldPower < -100)&&(meterPower < -100)) 
+        {
+          chgonly = true; autozero = true;
+          wakeup = true;
+        }
+        oldPower = meterPower;
+      }
+      
       // meterPower from shelly, positive = net consumption
       // essPower positive = invert, negative = charge
       // ACPower is actual power measurement from mp2
@@ -129,8 +153,8 @@ void VEBuscode(void * parameter)
         {
           gotMP2data = false;          
           expectedPower = - ACPower; // invert
-          batlow = (BatVolt < LoBat);
-          bathi  = (BatVolt > HiBat);
+          if (BatVolt < LoBat) batlow = true;
+          if (BatVolt > HiBat) bathi = true;
         }
         else expectedPower = 0.9*reqPower;
         
@@ -173,8 +197,9 @@ void VEBuscode(void * parameter)
       essPower = short(reqPower);
       gotmsg = true; // make sure no timeout
 
-      //storewp(meterPower,ACPower,reqPower); // red, blue, green
-      storewp(meterPower,totalWatt,reqPower);      
+      estvolt = BatVolt - (multiplusDcCurrent*0.03);
+      storewp(meterPower,totalWatt,reqPower); 
+      storedp(BatVolt,multiplusDcCurrent);  
     }  
     if (millis() > getdatatime)
     {
@@ -188,9 +213,6 @@ void VEBuscode(void * parameter)
 }
 
 //---------------------------------------
-
-bool gosleep;
-bool wakeup;
 
 void loop() 
 {  
@@ -214,15 +236,19 @@ void loop()
         if (millis() > synctime + txdelay) 
         {
           syncrxed = false;
-          if (wakeup) // pull Stby Low on ve.bus!
+          if (wakeup) 
           {
             sendmsg(4);
             wakeup = false;
+            //Serial.println("Wakeup");
+            isSleeping = false;
           }
           else if (gosleep) 
           {
             sendmsg(3);
             gosleep = false;
+            //Serial.println("Sleep");
+            isSleeping = true;
           }
           else sendmsg(2);
           sendnow = false;
