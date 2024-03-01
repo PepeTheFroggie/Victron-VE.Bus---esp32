@@ -28,7 +28,7 @@ unsigned long synctime;    // tx timeslot
 unsigned long getpwrtime;  // shelly getpower
 unsigned long getdatatime; // multiplus getpower
 unsigned long LoopInterval  =  5000;
-unsigned long SleepInterval = 30000;
+unsigned long SleepInterval = 20000;
 int meterPower = 0;        // result of newest power measurement
 int reqPower = 0;          // requested power to multiplus
 
