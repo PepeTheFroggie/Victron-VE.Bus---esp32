@@ -62,5 +62,5 @@ New version 20.4.24:
 - Calculate StateOfCharge. (Set initial value in SoC webpage!)
 - Low and High SoC limits.
 
-Set nitial SoC:
+
 ![SoC.png](SoC.png "SoC set")
