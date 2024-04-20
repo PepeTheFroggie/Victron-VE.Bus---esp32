@@ -7,7 +7,7 @@ https://github.com/pv-baxi/esp32ess
 Another similar project:
 https://github.com/GitNik1/VEBus
 
-Note you have to set the MPO2 in ESS mode according to PV-Baxi instructions! You will need an mk2 interface for this.
+Note you have to set the MP2 in ESS mode according to PV-Baxi instructions! You will need an mk2 interface for this.
 This is "in progress" and i refuse any liability! DO NOT have the multiplus and the esp32 usb connected simultaneously! Program the esp32 alone, detach usb and only then connect to ve.bus.
 
 It implements net-zero with help of a shelly 3EM and a multiplus2 48/3000. Hardware is a esp32 + RS485 converter + 12V to 5V buck converter.
