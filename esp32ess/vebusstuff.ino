@@ -68,6 +68,7 @@ int preparecmd(char *outbuf, byte desiredFrameNr)
   outbuf[j++] = 0xe6;           //our own ID
   outbuf[j++] = 0x30;           //Command read ram
   outbuf[j++] = 0x04;           //4-bat volt
+//outbuf[j++] = 0x0D;           //13-SOC
   outbuf[j++] = 0x0E;           //14-AC Power
   return j;  
 }
@@ -237,6 +238,8 @@ void decodeVEbusFrame(char *frame, int len)
         int16_t v = 256*frame[8]  + frame[7];
         BatVolt = 0.01*float(v);
         ACPower = 256*frame[10] + frame[9];
+      //MP2Soc  = 256*frame[10] + frame[9];
+      //ACPower = 256*frame[12] + frame[11];
       }
       else
       {
@@ -258,15 +261,19 @@ void multiplusCommandHandling()
     if (c==0x55) { if (frp == 5) synctime = millis(); }
     if (c==0xFF)        //in case current byte was EndOfFrame, interprete frame
     {
-      frlen = destuffFAtoFF(frbuf2,frbuf1,frp);
-      if ((frbuf2[2] == 0xFD) && (frbuf2[4] == 0x55))  //if it was a sync frame:
+      if ((frbuf1[2] == 0xFD) && (frbuf1[4] == 0x55))  //if it was a sync frame:
       {
-        frameNr = frbuf2[3];
+        frameNr = frbuf1[3];
         syncrxed = true;
       }
-      if ((frbuf2[0] == 0x83) && (frbuf2[1] == 0x83) && (frbuf2[2] == 0xFE))
+      else if ((frbuf1[0] == 0x83) && (frbuf1[1] == 0x83) && (frbuf1[2] == 0xFE))
       {
-        decodeVEbusFrame(frbuf2, frlen);
+        if (verifyChecksum(frbuf1, frp)) 
+        {
+          frlen = destuffFAtoFF(frbuf2,frbuf1,frp);      
+          decodeVEbusFrame(frbuf2, frlen);
+        }
+        else chksmfault++;
       }
       rxnum = frlen;
       frp = 0;

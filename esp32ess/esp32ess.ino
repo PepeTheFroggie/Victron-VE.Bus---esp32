@@ -5,6 +5,7 @@
 const char* SSID = "FSM";
 const char* PASSWORD = "0101010101";
 
+IPAddress local_IP;
 String Shelly_IP = "192.168.178.47";
 
 uint8_t * bssid;
@@ -17,7 +18,7 @@ HTTPUpdateServer httpUpdater;
 TaskHandle_t Task1; // wifi always core 1!
 
 bool autozero = true;      // auto zero 
-bool chgonly = true;       // auto charge only 
+bool chgonly = false;       // auto charge only 
 bool syncrxed;             // sync from multiplus received
 bool gotmsg;               // have message to be sent
 bool acked;                // message has been acked
@@ -33,17 +34,18 @@ int meterPower = 0;        // result of newest power measurement
 int reqPower = 0;          // requested power to multiplus
 
 #define txdelay 8          // delay from sync to tx
-#define i_maxpower  1500   // max power for inverter  
-#define c_maxpower -1750   // max power for charger. Must be negative
+#define i_maxpower  1875   // max power for inverter  
+#define c_maxpower -1875   // max power for charger. Must be negative
 
 char extframe[32];   
 int extframelen;  
  
 void setup() 
-{
+{  
   //Setup SerialMonitor for debug information
   Serial.begin(115200);
-
+  
+  initeeprom();
   init_vebus();
   
   //Init webserver
@@ -61,17 +63,17 @@ void setup()
   server.on("/", handleRoot);
   server.on("/graph", getGraph);
   server.on("/pic.svg", drawGraph);
-  server.on("/data", drawData);
+  server.on("/data", doData);
+  server.on("/soc", doSoc);
   server.on("/shelly", shellyIP);
   server.on("/cm", onoff);
   server.begin();
   Serial.println(" connected to WiFi");
-  Serial.println(WiFi.localIP());
+  local_IP = WiFi.localIP();
+  Serial.println(local_IP);
 
   clearwp();  
 
-  //if (initeeprom()) readeeprom();
-  
   // WiFi always core 1
   xTaskCreatePinnedToCore(VEBuscode, "VEBus", 10000, NULL, 0, &Task1, 0);
 }
@@ -84,6 +86,9 @@ bool batlow,bathi;
 extern float BatVolt;
 extern float multiplusDcCurrent;
 float estvolt;
+extern float totalAH;
+extern float soc;
+int MP2Soc;
 
 float filtPower;
 int expectedPower = 0; // expected power of multiplus
@@ -93,10 +98,12 @@ int InvHi = 150;
 int InvLo = 100;
 int ChgHi = -10;
 int ChgLo = -50;
-int TargetHi =  50;
-int TargetLo = -10;
-float LoBat = 51.0;
-float HiBat = 56.0;
+int TargetHi =  30;
+int TargetLo = -30;
+float AbsLoBat = 48.0;
+float AbsHiBat = 55.0;
+float HIsoc = 90.0;
+float LOsoc = 20.0;
 
 bool gosleep;
 bool wakeup;
@@ -104,19 +111,22 @@ bool isSleeping;
 bool autowakeup;
 int oldPower;
 
+unsigned int chksmfault;
+
 void VEBuscode(void * parameter) 
 {
   int totalWatt;
     
   Serial.print("Comm core ID: ");
   Serial.println(xPortGetCoreID());
-  
+    
   while(true) 
   {
     if (millis() > getpwrtime)
     {
       if (isSleeping) getpwrtime = millis() + SleepInterval;
       else            getpwrtime = millis() + LoopInterval;
+      //getpwrtime = millis() + LoopInterval;
       getdatatime = getpwrtime - 500;
 
       if (WiFi.status() == WL_CONNECTED) 
@@ -134,9 +144,10 @@ void VEBuscode(void * parameter)
 
       if (isSleeping && autowakeup)
       {
-        if ((oldPower < -100)&&(meterPower < -100)) 
+        if ((oldPower < -50)&&(meterPower < -50)) 
         {
-          chgonly = true; autozero = true;
+          chgonly = true; 
+          autozero = true;
           wakeup = true;
         }
         oldPower = meterPower;
@@ -153,8 +164,14 @@ void VEBuscode(void * parameter)
         {
           gotMP2data = false;          
           expectedPower = - ACPower; // invert
-          if (BatVolt < LoBat) batlow = true;
-          if (BatVolt > HiBat) bathi = true;
+          estvolt = BatVolt - (multiplusDcCurrent*0.017);
+          if (estvolt < AbsLoBat) batlow = true; //48V emergency exit
+          if (estvolt > AbsHiBat) bathi  = true; //55V emergency exit
+          
+          if (estvolt > 53.8) // 53.8V = 90%
+          { if (soc < 0.9 * totalAH) soc = 0.9 * totalAH; }
+          if (estvolt < 48.0) // 48.0V = 10%
+          { if (soc > 0.1 * totalAH) soc = 0.1 * totalAH; }
         }
         else expectedPower = 0.9*reqPower;
         
@@ -170,6 +187,12 @@ void VEBuscode(void * parameter)
         if (chgonly) DoInv = false;
         if (batlow)  DoInv = false;
         if (bathi)   DoChg = false;
+
+        // check SoC
+        float socpercent = 100.0*soc/totalAH;
+        if (socpercent > HIsoc) DoChg = false;
+        if (socpercent < LOsoc) DoInv = false;
+
 
         // inverting
         if (totalWatt > 0) reqPower = totalWatt - TargetHi; 
@@ -193,13 +216,14 @@ void VEBuscode(void * parameter)
            
         syncrxed = false;
       }
+      else totalWatt = 0;
       
       essPower = short(reqPower);
       gotmsg = true; // make sure no timeout
 
-      estvolt = BatVolt - (multiplusDcCurrent*0.03);
       storewp(meterPower,totalWatt,reqPower); 
-      storedp(BatVolt,multiplusDcCurrent);  
+      updateSoc(multiplusDcCurrent,LoopInterval);      
+      storeData(estvolt,multiplusDcCurrent,soc);  
     }  
     if (millis() > getdatatime)
     {

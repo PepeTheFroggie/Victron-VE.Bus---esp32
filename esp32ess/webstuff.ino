@@ -28,7 +28,7 @@ void clearwp()
 
 #define fullH 300+110
 #define halfH 150+10
-#define Hfact 0.10  // 1500W -> 150
+#define Hfact 0.08  // 1875W -> 150
 
 void getGraph() 
 {
@@ -44,7 +44,9 @@ void getGraph()
   
   out += "PowerMeter: "+String(meterPower)+" W &emsp;";
   out += "ESSPower: "+String(essPower)+" W &emsp;";
-  out += "Bat Volt: "+String(BatVolt)+" V <br>";
+  out += "Bat Volt: "+String(BatVolt)+" V &emsp;";
+  out += "SoC: "+String(100.0*soc/totalAH)+" %<br>";
+  //out += "CSerr " + String(chksmfault) + "<br>";
   
   out += "<img src=\"/pic.svg\" />\n";
   out += "</center></body>\n";
@@ -156,8 +158,10 @@ void shellyIP()
     else if (server.argName(i) == "ChgLo") ChgLo = server.arg(i).toInt();
     else if (server.argName(i) == "TargetHi") TargetHi = server.arg(i).toInt();
     else if (server.argName(i) == "TargetLo") TargetLo = server.arg(i).toInt();
-    else if (server.argName(i) == "LoBat") LoBat = server.arg(i).toFloat();
-    else if (server.argName(i) == "HiBat") HiBat = server.arg(i).toFloat();
+    else if (server.argName(i) == "LoBat") AbsLoBat = server.arg(i).toFloat();
+    else if (server.argName(i) == "HiBat") AbsHiBat = server.arg(i).toFloat();
+    else if (server.argName(i) == "LoSoc") LOsoc = server.arg(i).toFloat();
+    else if (server.argName(i) == "HiSoc") HIsoc = server.arg(i).toFloat();
   }
    
   out += "<html><br><br><center>\n";
@@ -219,17 +223,32 @@ void shellyIP()
   out += "<form method=\"post\">\n";
   out += "Low Bat \n";
   out += "<input type=\"number\" step=\"0.01\" name=\"LoBat\" style=\"width:8em\" value=\"";
-  out += LoBat;
+  out += AbsLoBat;
   out += "\">\n";
   out += "&emsp;Hi Bat \n";
   out += "<input type=\"number\" step=\"0.01\" name=\"HiBat\" style=\"width:8em\" value=\"";
-  out += HiBat;
+  out += AbsHiBat;
   out += "\">\n";
   out += "<input type=\"submit\"><br>\n";
   out += "</form>\n";
 
-  out += "<button onclick=\"window.location.href='/?commit=\';\">Write to Flash</button><br><br>\n";
+  out += "<form method=\"post\">\n";
+  out += "Low SoC % \n";
+  out += "<input type=\"number\" name=\"LoSoc\" style=\"width:6em\" value=\"";
+  out += int(LOsoc);
+  out += "\">\n";
+  out += "&emsp;Hi SoC % \n";
+  out += "<input type=\"number\" name=\"HiSoc\" style=\"width:6em\" value=\"";
+  out += int(HIsoc);
+  out += "\">\n";
+  out += "<input type=\"submit\"><br>\n";
+  out += "</form>\n";
 
+  out += "<button onclick=\"window.location.href='/?wrset=\';\">Write Settings</button>&emsp;\n";
+  out += "<button onclick=\"window.location.href='/?rdset=\';\">Read Settings</button><br><br>\n";
+
+  out += "<a href=\"/soc\">SoC</a>&emsp;\n";
+  out += "<a href=\"/data\">Data</a>&emsp;\n";
   out += "<a href=\"/\">Back</a>\n";
   out += "</center></html>";
   server.send(200, "text/html", out);
@@ -251,7 +270,8 @@ void handleRoot()
     else if (server.argName(i) == "OFF")  gosleep = true;
     else if (server.argName(i) == "AON")  autowakeup = !autowakeup;
     else if (server.argName(i) == "manu"){autozero=false; reqPower=0; batlow=false; bathi=false;}
-    else if (server.argName(i) == "commit") writeeprom();
+    else if (server.argName(i) == "wrset") writeeprom();
+    else if (server.argName(i) == "rdset") readeeprom();
     param = true;
   }
   
@@ -267,18 +287,19 @@ void handleRoot()
   out += "<p><b>ESP32 Multiplus ESS</b></p>";
   out += "<a href=\"/up\">Upload</a>&emsp;\n";
   out += "<a href=\"/graph\">Graph</a>&emsp;\n";
-  out += "<a href=\"/data\">Data</a>&emsp;\n";
+//out += "<a href=\"/data\">Data</a>&emsp;\n";
   out += "<a href=\"/shelly\">Settings</a>&emsp;\n";
   out += "<a href=\"/\">Refresh</a><br><br>\n";
   
   out += "PowerMeter: "+String(meterPower)+" W &emsp;";
   if (isSleeping) out += "IS SLEEPING&emsp;";
-  out += "EstBatVolt: "+String(estvolt)+" V&emsp;";
+  out += "AC Power: "+String(ACPower)+" W&emsp;";
   out += "ESSPower: "+String(essPower)+" W<br><br>";
 
   out += "Bat Volt: "+String(BatVolt)+" V&emsp;";
+  out += "EstBatVolt: "+String(estvolt)+" V&emsp;";
   out += "Bat Amp: "+String(multiplusDcCurrent)+" A&emsp;";
-  out += "AC Power: "+String(ACPower)+" W<br><br>";
+  out += "SoC: "+String(100.0*soc/totalAH)+" %<br><br>";
   if (batlow) out += "Bat Low Alarm !<br><br>";
   if (bathi) out += "Bat High Alarm !<br><br>";
   

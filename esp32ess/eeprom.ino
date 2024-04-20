@@ -1,42 +1,41 @@
-#include <EEPROM.h>
+//#include <Preferences.h>
+//Preferences preferences;
 
-// EEPROM.write(address, value);
-// EEPROM.commit();
-// EEPROM.read(address);
+#include "EEPROM.h"
 
-#define EEPROM_SIZE 64
+EEPROMClass  SETTINGS("eeprom0");
 
-bool initeeprom()
+void initeeprom()
 {
-  EEPROM.begin(EEPROM_SIZE);
-  return (EEPROM.read(0) == 0xAA);
+  if (!SETTINGS.begin(64)) Serial.println("Failed to initialise SETTINGS");
 }
 
 void readeeprom()
 {
-  EEPROM.get(4,InvHi);
-  EEPROM.get(8,InvLo);
-  EEPROM.get(12,ChgHi);
-  EEPROM.get(16,ChgLo);
-  EEPROM.get(20,TargetHi);
-  EEPROM.get(24,TargetLo);
-  EEPROM.get(28,LoBat);
-  EEPROM.get(32,HiBat);  
-  EEPROM.get(36,LoopInterval);
-  LoopInterval = constrain(LoopInterval,1,60);
+  InvHi    = SETTINGS.readInt( 0);
+  InvLo    = SETTINGS.readInt( 4);
+  ChgHi    = SETTINGS.readInt( 8);
+  ChgLo    = SETTINGS.readInt(12);
+  TargetHi = SETTINGS.readInt(16);
+  TargetLo = SETTINGS.readInt(20);
+  AbsLoBat = SETTINGS.readFloat(24);
+  AbsHiBat = SETTINGS.readFloat(28);
+  LoopInterval = SETTINGS.readULong(32);
+  Shelly_IP    = SETTINGS.readString(40);
 }
 
 void writeeprom()
 {
-  EEPROM.write(0, 0xAA);
-  EEPROM.put(4,InvHi);
-  EEPROM.put(8,InvLo);
-  EEPROM.put(12,ChgHi);
-  EEPROM.put(16,ChgLo);
-  EEPROM.put(20,TargetHi);
-  EEPROM.put(24,TargetLo);
-  EEPROM.put(28,LoBat);
-  EEPROM.put(32,HiBat);    
-  EEPROM.put(36,LoopInterval);
-  EEPROM.commit();
+  SETTINGS.writeInt( 0,InvHi);
+  SETTINGS.writeInt( 4,InvLo);
+  SETTINGS.writeInt( 8,ChgHi);
+  SETTINGS.writeInt(12,ChgLo);
+  SETTINGS.writeInt(16,TargetHi);
+  SETTINGS.writeInt(20,TargetLo);
+  SETTINGS.writeFloat(24,AbsLoBat);
+  SETTINGS.writeFloat(28,AbsHiBat);
+  SETTINGS.writeULong(32,LoopInterval);
+  SETTINGS.writeString(40,Shelly_IP);
+
+  SETTINGS.commit();
 }
