@@ -61,3 +61,6 @@ New version 20.4.24:
 - Extend graph to +-1850W
 - Calculate StateOfCharge. (Set initial value in SoC webpage!)
 - Low and High SoC limits.
+
+Set nitial SoC:
+![SoC.png](SoC.png "SoC set")
