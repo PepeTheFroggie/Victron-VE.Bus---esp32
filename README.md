@@ -67,4 +67,4 @@ New version 20.4.24:
 ![SoC.png](SoC.png "SoC set")
 
 Actual installation:
-![MG_20240426_172508.jpg](MG_20240426_172508.jpg "actinst")
+![IMG_20240426_172508.jpg](IMG_20240426_172508.jpg "actinst") ![IMG_20240426_172516.jpg](IMG_20240426_172516.jpg "bat")
